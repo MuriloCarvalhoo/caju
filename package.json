@@ -1,0 +1,12 @@
+{
+  "name": "caju",
+  "version": "1.0.0",
+  "description": "Caju Artesanatos - Backend com Redis e Vercel",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.37.0",
+    "jsonwebtoken": "^9.0.3"
+  }
+}

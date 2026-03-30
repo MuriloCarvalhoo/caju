@@ -1273,15 +1273,10 @@
 
 <script>
   // ═══════════════════════════════════════════════════════════
-  // CONFIGURAÇÕES — preencha após criar as contas
+  // CONFIGURAÇÕES — Backend API (credenciais seguras no servidor)
   // ═══════════════════════════════════════════════════════════
-  const ADMIN_PASSWORD = 'caju2025';          // Sua senha do painel admin
-  const JSONBIN_BIN_ID  = '69c715bdb7ec241ddcaf29a7';  // ID do bin no JSONBin.io
-  const JSONBIN_API_KEY = '$2a$10$MLzAAezP0ElBgON43cNmQ.lt4Da/phIysYV6r10WFqPFzWpq4HLui'; // Master key do JSONBin.io
-  const IMGBB_API_KEY   = '44a52dfd7556d4e5ba62fba1bc94da2b'; // API key do ImgBB.com
-  // ═══════════════════════════════════════════════════════════
-
-  const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/' + JSONBIN_BIN_ID;
+  const API_BASE = '/api';
+  let adminToken = null;
   const bgColors = ['var(--c4)','rgba(212,169,106,0.45)','rgba(158,123,85,0.35)','var(--c4)','rgba(212,169,106,0.35)','rgba(232,213,183,0.6)'];
 
   const defaultProducts = [
@@ -1295,48 +1290,56 @@
 
   let products = JSON.parse(JSON.stringify(defaultProducts));
 
-  // ── Carregar produtos do JSONBin ────────────────────────────
+  // ── Carregar produtos do backend ────────────────────────────
   async function fetchProducts() {
-    if (JSONBIN_BIN_ID === '69c715bdb7ec241ddcaf29a7') {
-      renderCarousel(defaultProducts);
-      return;
-    }
     try {
-      const res = await fetch(JSONBIN_URL + '/latest', {
-        headers: { 'X-Master-Key': JSONBIN_API_KEY }
-      });
+      const res = await fetch(API_BASE + '/products');
       const data = await res.json();
-      products = data.record.products || defaultProducts;
+      products = data.products || defaultProducts;
     } catch(e) {
       products = defaultProducts;
     }
     renderCarousel(products);
   }
 
-  // ── Salvar produtos no JSONBin ──────────────────────────────
+  // ── Salvar produtos no backend ──────────────────────────────
   async function pushProducts(prods) {
-    const res = await fetch(JSONBIN_URL, {
+    const res = await fetch(API_BASE + '/products', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_API_KEY
+        'Authorization': 'Bearer ' + adminToken
       },
       body: JSON.stringify({ products: prods })
     });
-    if (!res.ok) throw new Error('Erro ao salvar no JSONBin');
+    if (!res.ok) throw new Error('Erro ao salvar produtos');
   }
 
-  // ── Upload de imagem no ImgBB ───────────────────────────────
+  // ── Upload de imagem via backend ────────────────────────────
   async function uploadImage(file) {
-    const form = new FormData();
-    form.append('image', file);
-    const res = await fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY, {
-      method: 'POST',
-      body: form
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result.split(',')[1];
+          const res = await fetch(API_BASE + '/upload', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + adminToken
+            },
+            body: JSON.stringify({ image: base64 })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Erro ao enviar imagem');
+          resolve(data.url);
+        } catch(e) {
+          reject(e);
+        }
+      };
+      reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+      reader.readAsDataURL(file);
     });
-    const data = await res.json();
-    if (!data.success) throw new Error('Erro ao enviar imagem');
-    return data.data.url;
   }
 
   // ── Renderizar carrossel ────────────────────────────────────
@@ -1387,13 +1390,27 @@
     document.body.style.overflow = '';
   }
 
-  function checkPass() {
-    if (document.getElementById('admin-pass').value === ADMIN_PASSWORD) {
-      document.getElementById('admin-login').style.display = 'none';
-      document.getElementById('admin-editor').style.display = 'block';
-      buildAdminGrid();
-    } else {
-      document.getElementById('admin-pass-error').textContent = 'Senha incorreta. Tente novamente.';
+  async function checkPass() {
+    const pass = document.getElementById('admin-pass').value;
+    const errorEl = document.getElementById('admin-pass-error');
+    errorEl.textContent = '';
+    try {
+      const res = await fetch(API_BASE + '/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pass })
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        adminToken = data.token;
+        document.getElementById('admin-login').style.display = 'none';
+        document.getElementById('admin-editor').style.display = 'block';
+        buildAdminGrid();
+      } else {
+        errorEl.textContent = 'Senha incorreta. Tente novamente.';
+      }
+    } catch(e) {
+      errorEl.textContent = 'Erro de conexão. Tente novamente.';
     }
   }
 
