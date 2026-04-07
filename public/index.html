@@ -877,8 +877,67 @@
   }
   .carousel-dot.active { background: var(--c3); transform: scale(1.3); }
 
-  @media (max-width: 768px) {
+  /* FILTROS DO CATÁLOGO */
+  .catalog-filters {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 0 0 2rem;
+    padding: 0 1rem;
+  }
+  .filter-btn {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    padding: 0.55rem 1.1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(212,169,106,0.35);
+    background: transparent;
+    color: var(--c5);
+    cursor: pointer;
+    transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, transform 0.2s ease;
+    white-space: nowrap;
+  }
+  .filter-btn:hover { background: rgba(212,169,106,0.10); border-color: var(--c3); }
+  .filter-btn.active {
+    background: var(--c3);
+    color: var(--c0);
+    border-color: var(--c3);
+    transform: translateY(-1px);
+  }
+
+  /* carrossel — extras */
+  .carousel-empty {
+    width: 100%;
+    text-align: center;
+    padding: 3rem 1rem;
+    color: rgba(232,213,183,0.55);
+    font-size: 0.9rem;
+    letter-spacing: 0.06em;
+  }
+  .carousel-card { user-select: none; }
+  .carousel { touch-action: pan-y; }
+
+  @media (max-width: 1024px) {
+    .carousel-card { flex: 0 0 calc((100% - 1.5rem) / 2); }
+  }
+  @media (max-width: 640px) {
+    .catalog-filters {
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      padding: 0 1.25rem 0.5rem;
+      scrollbar-width: none;
+    }
+    .catalog-filters::-webkit-scrollbar { display: none; }
+    .filter-btn { scroll-snap-align: start; flex: 0 0 auto; }
+    .carousel { gap: 1rem; }
     .carousel-card { flex: 0 0 100%; }
+    .carousel-controls { gap: 1rem; margin-top: 1rem; }
+    .carousel-btn { width: 40px; height: 40px; }
   }
 
   /* ADMIN PANEL */
@@ -994,8 +1053,41 @@
     min-height: 1.2em;
     text-align: center;
   }
-  @media (max-width: 600px) {
+  .ap-cat {
+    margin-bottom: 0.4rem;
+    cursor: pointer;
+  }
+  .ap-remove {
+    background: transparent;
+    color: #c0392b;
+    border: 1px solid rgba(192,57,43,0.35);
+    border-radius: 10px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.72rem;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .ap-remove:hover { background: #c0392b; color: white; }
+  .admin-add-btn {
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.7rem 1rem;
+    background: transparent;
+    color: var(--c2);
+    border: 1.5px dashed var(--c4);
+    border-radius: 12px;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .admin-add-btn:hover { border-color: var(--c3); color: var(--c0); }
+  @media (max-width: 900px) {
     .admin-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 600px) {
+    .admin-grid { grid-template-columns: 1fr; }
     .admin-box { padding: 1.5rem 1rem; }
   }
 
@@ -1251,14 +1343,16 @@
     </div>
   </div>
 
+  <div class="catalog-filters reveal" id="catalog-filters" role="tablist" aria-label="Filtrar por categoria"></div>
+
   <div class="carousel-wrap reveal">
     <div class="carousel-viewport">
       <div class="carousel" id="carousel"></div>
     </div><!-- end carousel-viewport -->
     <div class="carousel-controls">
-      <button class="carousel-btn" id="prevBtn" onclick="moveCarousel(-1)">←</button>
+      <button class="carousel-btn" id="prevBtn" onclick="moveCarousel(-1)" aria-label="Anterior">←</button>
       <div class="carousel-dots" id="dots"></div>
-      <button class="carousel-btn" id="nextBtn" onclick="moveCarousel(1)">→</button>
+      <button class="carousel-btn" id="nextBtn" onclick="moveCarousel(1)" aria-label="Próximo">→</button>
     </div>
   </div>
 </section>
@@ -1339,8 +1433,9 @@
         <h2 class="admin-title">Editar produtos</h2>
         <button class="admin-logout" onclick="closeAdmin()">✕ Fechar</button>
       </div>
-      <p class="admin-sub">Clique em cada produto para editar nome, preço e foto. As alterações ficam visíveis para todos os visitantes.</p>
+      <p class="admin-sub">Clique em cada produto para editar nome, preço, categoria e foto. As alterações ficam visíveis para todos os visitantes.</p>
       <div class="admin-grid" id="admin-grid"></div>
+      <button type="button" class="admin-add-btn" onclick="addProduct()">+ Adicionar produto</button>
 
       <h3 class="admin-title" style="font-size:1.2rem;margin-top:2.5rem;">Portfólio (peças não à venda)</h3>
       <p class="admin-sub">Adicione peças exclusivas para exibir na galeria. Sem preço, apenas imagem e nome.</p>
@@ -1367,13 +1462,23 @@
   let adminToken = null;
   const bgColors = ['var(--c4)','rgba(212,169,106,0.45)','rgba(158,123,85,0.35)','var(--c4)','rgba(212,169,106,0.35)','rgba(232,213,183,0.6)'];
 
+  const CATEGORIES = [
+    { id: 'incensarios',        label: 'Incensários' },
+    { id: 'incensario-cascata', label: 'Incensário Cascata' },
+    { id: 'porta-objetos',      label: 'Porta Objetos' },
+    { id: 'cinzeiro',           label: 'Cinzeiro' },
+    { id: 'porta-velas',        label: 'Porta Velas' },
+    { id: 'pendentes-parede',   label: 'Pendentes de Parede' },
+  ];
+  let activeFilter = 'all';
+
   const defaultProducts = [
-    { name: 'Produto 1', price: 'R$ 00,00', img: '' },
-    { name: 'Produto 2', price: 'R$ 00,00', img: '' },
-    { name: 'Produto 3', price: 'R$ 00,00', img: '' },
-    { name: 'Produto 4', price: 'R$ 00,00', img: '' },
-    { name: 'Produto 5', price: 'R$ 00,00', img: '' },
-    { name: 'Produto 6', price: 'R$ 00,00', img: '' },
+    { name: 'Produto 1', price: 'R$ 00,00', img: '', category: '' },
+    { name: 'Produto 2', price: 'R$ 00,00', img: '', category: '' },
+    { name: 'Produto 3', price: 'R$ 00,00', img: '', category: '' },
+    { name: 'Produto 4', price: 'R$ 00,00', img: '', category: '' },
+    { name: 'Produto 5', price: 'R$ 00,00', img: '', category: '' },
+    { name: 'Produto 6', price: 'R$ 00,00', img: '', category: '' },
   ];
 
   let products = JSON.parse(JSON.stringify(defaultProducts));
@@ -1384,11 +1489,16 @@
     try {
       const res = await fetch(API_BASE + '/products');
       const data = await res.json();
-      products = data.products || defaultProducts;
+      products = (data.products || defaultProducts).map(p => ({
+        name: p.name || '',
+        price: p.price || '',
+        img: p.img || '',
+        category: p.category || '',
+      }));
     } catch(e) {
-      products = defaultProducts;
+      products = JSON.parse(JSON.stringify(defaultProducts));
     }
-    renderCarousel(products);
+    renderCarousel();
   }
 
   // ── Carregar portfólio do backend ───────────────────────────
@@ -1474,19 +1584,54 @@
     });
   }
 
+  // ── Filtros do catálogo ────────────────────────────────────
+  function buildFilters() {
+    const wrap = document.getElementById('catalog-filters');
+    if (!wrap) return;
+    const all = [{ id: 'all', label: 'Todos' }].concat(CATEGORIES);
+    wrap.innerHTML = all.map(c =>
+      '<button class="filter-btn' + (c.id === activeFilter ? ' active' : '') + '" data-cat="' + c.id + '" role="tab">' + c.label + '</button>'
+    ).join('');
+    wrap.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeFilter = btn.dataset.cat;
+        wrap.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+        renderCarousel();
+      });
+    });
+  }
+
   // ── Renderizar carrossel ────────────────────────────────────
-  function renderCarousel(prods) {
-    const track = document.getElementById('carousel');
+  function renderCarousel() {
+    const track  = document.getElementById('carousel');
+    const dotsEl = document.getElementById('dots');
     if (!track) return;
-    track.innerHTML = (prods || products).map((p, i) => {
+
+    if (window._carouselCleanup) { window._carouselCleanup(); window._carouselCleanup = null; }
+
+    const filtered = activeFilter === 'all'
+      ? products
+      : products.filter(p => p.category === activeFilter);
+
+    if (!filtered.length) {
+      track.innerHTML = '<div class="carousel-empty">Nenhuma peça nesta categoria ainda.</div>';
+      track.style.transform = 'translateX(0)';
+      if (dotsEl) dotsEl.innerHTML = '';
+      return;
+    }
+
+    track.innerHTML = filtered.map((p, i) => {
       const imgHTML = p.img
         ? '<img src="' + p.img + '" alt="' + p.name + '" style="width:100%;height:100%;object-fit:cover;display:block;">'
         : '<div class="carousel-img-placeholder">＋ foto em breve</div>';
-      const safeName  = p.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      const safePrice = p.price.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const cat = CATEGORIES.find(c => c.id === p.category);
+      const catHTML = cat ? '<span class="carousel-cat">' + cat.label + '</span>' : '';
+      const safeName  = (p.name || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const safePrice = (p.price || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       return '<div class="carousel-card" onclick="openModal(\'' + safeName + '\',\'' + safePrice + '\')">'
         + '<div class="carousel-img" style="background:' + bgColors[i % bgColors.length] + ';">' + imgHTML + '</div>'
         + '<div class="carousel-info">'
+        + catHTML
         + '<h3 class="carousel-name">' + p.name + '</h3>'
         + '<span class="carousel-price">' + p.price + '</span>'
         + '</div></div>';
@@ -1497,6 +1642,7 @@
   // ── Admin: abrir (3 cliques no logo do rodapé) ─────────────
   let logoClicks = 0, logoTimer;
   document.addEventListener('DOMContentLoaded', () => {
+    buildFilters();
     fetchProducts();
     fetchPecas();
     const logo = document.querySelector('.footer-logo');
@@ -1550,19 +1696,54 @@
   // ── Admin: montar grid de edição ────────────────────────────
   function buildAdminGrid() {
     const grid = document.getElementById('admin-grid');
+    const escAttr = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
     grid.innerHTML = products.map((p, i) => {
       const preview = p.img
-        ? '<img src="' + p.img + '" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">'
+        ? '<img src="' + escAttr(p.img) + '" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">'
         : '<span style="font-size:0.72rem;color:var(--c2);text-align:center;padding:0.5rem;">Clique para adicionar foto</span>';
+      const catOptions = [{id:'',label:'Sem categoria'}].concat(CATEGORIES).map(c =>
+        '<option value="' + c.id + '"' + (c.id === (p.category || '') ? ' selected' : '') + '>' + c.label + '</option>'
+      ).join('');
       return '<div class="admin-product-row" data-index="' + i + '">'
         + '<div class="ap-img-wrap" onclick="document.getElementById(\'apf' + i + '\').click()">' + preview + '</div>'
         + '<div class="ap-upload-status" id="ap-status-' + i + '"></div>'
         + '<input type="file" id="apf' + i + '" accept="image/*" style="display:none;" onchange="handleImg(this,' + i + ')">'
-        + '<input class="ap-name admin-input" value="' + p.name + '" placeholder="Nome do produto">'
-        + '<input class="ap-price admin-input" value="' + p.price + '" placeholder="R$ 00,00">'
+        + '<input class="ap-name admin-input" value="' + escAttr(p.name) + '" placeholder="Nome do produto">'
+        + '<input class="ap-price admin-input" value="' + escAttr(p.price) + '" placeholder="R$ 00,00">'
+        + '<select class="ap-cat admin-input">' + catOptions + '</select>'
+        + '<button type="button" class="ap-remove" onclick="removeProduct(' + i + ')" aria-label="Remover produto">× Remover</button>'
         + '</div>';
     }).join('');
     buildAdminPecasGrid();
+  }
+
+  function addProduct() {
+    if (products.length >= 60) { alert('Limite de 60 produtos atingido.'); return; }
+    syncAdminRowsToProducts();
+    products.push({ name: 'Novo produto', price: 'R$ 00,00', img: '', category: '' });
+    buildAdminGrid();
+  }
+
+  function removeProduct(i) {
+    if (!confirm('Remover este produto?')) return;
+    syncAdminRowsToProducts();
+    products.splice(i, 1);
+    buildAdminGrid();
+  }
+
+  function syncAdminRowsToProducts() {
+    const rows = Array.from(document.querySelectorAll('.admin-product-row[data-index]'));
+    if (!rows.length) return;
+    products = rows.map(row => {
+      const idx = Number(row.dataset.index);
+      const img = (products[idx] && products[idx].img) || '';
+      return {
+        name:     row.querySelector('.ap-name').value || 'Sem nome',
+        price:    row.querySelector('.ap-price').value || 'R$ 00,00',
+        img:      img,
+        category: (row.querySelector('.ap-cat') && row.querySelector('.ap-cat').value) || '',
+      };
+    });
   }
 
   function buildAdminPecasGrid() {
@@ -1645,14 +1826,7 @@
 
   // ── Salvar todos os dados ───────────────────────────────────
   async function saveProducts() {
-    document.querySelectorAll('[data-index]').forEach(row => {
-      const i = parseInt(row.dataset.index, 10);
-      if (!products[i]) return;
-      const nameEl = row.querySelector('.ap-name');
-      const priceEl = row.querySelector('.ap-price');
-      if (nameEl) products[i].name = nameEl.value || products[i].name;
-      if (priceEl) products[i].price = priceEl.value || products[i].price;
-    });
+    syncAdminRowsToProducts();
     document.querySelectorAll('[data-peca-index]').forEach(row => {
       const i = parseInt(row.dataset.pecaIndex, 10);
       if (!pecas[i]) return;
@@ -1669,7 +1843,8 @@
     try {
       await pushProducts(products);
       await pushPecas(pecas);
-      renderCarousel(products);
+      buildAdminGrid();
+      renderCarousel();
       renderPecas();
       status.textContent = '✓ Alterações salvas e publicadas para todos os visitantes!';
       status.style.color = '#27ae60';
@@ -1737,20 +1912,28 @@
   let carouselCurrent = 0;
   function initCarousel() {
     const track  = document.getElementById('carousel');
+    const wrap   = track && track.closest('.carousel-wrap');
     const dotsEl = document.getElementById('dots');
-    if (!track) return;
+    if (!track || !wrap) return;
     const cards = Array.from(track.querySelectorAll('.carousel-card'));
     if (!cards.length) return;
     carouselCurrent = 0;
 
-    function getVisible()  { return window.innerWidth <= 768 ? 1 : 3; }
+    function getVisible() {
+      const w = window.innerWidth;
+      if (w <= 640)  return 1;
+      if (w <= 1024) return 2;
+      return 3;
+    }
+    function getGap() { return window.innerWidth <= 640 ? 16 : 24; }
     function totalSlides() { return Math.ceil(cards.length / getVisible()); }
 
     function buildDots() {
       dotsEl.innerHTML = '';
-      for (let i = 0; i < totalSlides(); i++) {
+      const total = totalSlides();
+      for (let i = 0; i < total; i++) {
         const dot = document.createElement('button');
-        dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+        dot.className = 'carousel-dot' + (i === carouselCurrent ? ' active' : '');
         dot.setAttribute('aria-label', 'Slide ' + (i + 1));
         dot.addEventListener('click', () => goTo(i));
         dotsEl.appendChild(dot);
@@ -1761,16 +1944,82 @@
       const total = totalSlides();
       carouselCurrent = ((index % total) + total) % total;
       const cardW  = cards[0].offsetWidth;
-      const offset = carouselCurrent * getVisible() * (cardW + 24);
+      const offset = carouselCurrent * getVisible() * (cardW + getGap());
       track.style.transform = 'translateX(-' + offset + 'px)';
-      document.querySelectorAll('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === carouselCurrent));
+      dotsEl.querySelectorAll('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === carouselCurrent));
     }
 
     window.moveCarousel = dir => goTo(carouselCurrent + dir);
     buildDots();
-    window.removeEventListener('resize', window._carouselResize);
-    window._carouselResize = () => { carouselCurrent = 0; buildDots(); goTo(0); };
-    window.addEventListener('resize', window._carouselResize);
+    goTo(0);
+
+    // auto-play
+    let autoTimer = null;
+    function startAuto() {
+      stopAuto();
+      if (totalSlides() <= 1) return;
+      autoTimer = setInterval(() => goTo(carouselCurrent + 1), 6000);
+    }
+    function stopAuto() {
+      if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    }
+    wrap.addEventListener('mouseenter', stopAuto);
+    wrap.addEventListener('mouseleave', startAuto);
+    startAuto();
+
+    // swipe touch
+    let touchStartX = 0, touchDeltaX = 0, swiping = false;
+    function onTouchStart(e) {
+      if (!e.touches || e.touches.length !== 1) return;
+      swiping = true;
+      touchStartX = e.touches[0].clientX;
+      touchDeltaX = 0;
+      stopAuto();
+    }
+    function onTouchMove(e) {
+      if (!swiping || !e.touches) return;
+      touchDeltaX = e.touches[0].clientX - touchStartX;
+    }
+    function onTouchEnd() {
+      if (!swiping) return;
+      swiping = false;
+      if (Math.abs(touchDeltaX) > 50) {
+        goTo(carouselCurrent + (touchDeltaX < 0 ? 1 : -1));
+      }
+      touchDeltaX = 0;
+      startAuto();
+    }
+    track.addEventListener('touchstart', onTouchStart, { passive: true });
+    track.addEventListener('touchmove',  onTouchMove,  { passive: true });
+    track.addEventListener('touchend',   onTouchEnd);
+    track.addEventListener('touchcancel',onTouchEnd);
+
+    // teclado (apenas quando a seção está visível)
+    function onKey(e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const rect = wrap.getBoundingClientRect();
+      const visible = rect.bottom > 0 && rect.top < window.innerHeight;
+      if (!visible) return;
+      goTo(carouselCurrent + (e.key === 'ArrowRight' ? 1 : -1));
+    }
+    document.addEventListener('keydown', onKey);
+
+    // resize
+    function onResize() { carouselCurrent = 0; buildDots(); goTo(0); }
+    window.addEventListener('resize', onResize);
+
+    // cleanup (chamado por renderCarousel ao re-render)
+    window._carouselCleanup = () => {
+      stopAuto();
+      wrap.removeEventListener('mouseenter', stopAuto);
+      wrap.removeEventListener('mouseleave', startAuto);
+      track.removeEventListener('touchstart', onTouchStart);
+      track.removeEventListener('touchmove',  onTouchMove);
+      track.removeEventListener('touchend',   onTouchEnd);
+      track.removeEventListener('touchcancel',onTouchEnd);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+    };
   }
 
   // ── Scroll reveal ───────────────────────────────────────────

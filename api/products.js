@@ -10,13 +10,23 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const PRODUCTS_KEY = 'caju:products';
 
 const defaultProducts = [
-  { name: 'Produto 1', price: 'R$ 00,00', img: '' },
-  { name: 'Produto 2', price: 'R$ 00,00', img: '' },
-  { name: 'Produto 3', price: 'R$ 00,00', img: '' },
-  { name: 'Produto 4', price: 'R$ 00,00', img: '' },
-  { name: 'Produto 5', price: 'R$ 00,00', img: '' },
-  { name: 'Produto 6', price: 'R$ 00,00', img: '' },
+  { name: 'Produto 1', price: 'R$ 00,00', img: '', category: '' },
+  { name: 'Produto 2', price: 'R$ 00,00', img: '', category: '' },
+  { name: 'Produto 3', price: 'R$ 00,00', img: '', category: '' },
+  { name: 'Produto 4', price: 'R$ 00,00', img: '', category: '' },
+  { name: 'Produto 5', price: 'R$ 00,00', img: '', category: '' },
+  { name: 'Produto 6', price: 'R$ 00,00', img: '', category: '' },
 ];
+
+const VALID_CATS = new Set([
+  '',
+  'incensarios',
+  'incensario-cascata',
+  'porta-objetos',
+  'cinzeiro',
+  'porta-velas',
+  'pendentes-parede',
+]);
 
 function verifyToken(req) {
   const auth = req.headers.authorization;
@@ -30,10 +40,12 @@ function verifyToken(req) {
 }
 
 function sanitizeProduct(p) {
+  const cat = String(p.category || '');
   return {
     name: String(p.name || '').slice(0, 100),
     price: String(p.price || '').slice(0, 20),
     img: String(p.img || '').slice(0, 500),
+    category: VALID_CATS.has(cat) ? cat : '',
   };
 }
 
@@ -64,7 +76,7 @@ module.exports = async (req, res) => {
     try {
       const { products } = req.body;
 
-      if (!Array.isArray(products) || products.length > 20) {
+      if (!Array.isArray(products) || products.length > 60) {
         return res.status(400).json({ error: 'Dados inválidos' });
       }
 
