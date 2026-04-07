@@ -7,19 +7,13 @@ const redis = new Redis({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const GALLERY_KEY = 'caju:gallery';
+const PORTFOLIO_KEY = 'caju:portfolio';
 
-const defaultGallery = [];
-
-const VALID_CATS = new Set([
-  '',
-  'incensarios',
-  'incensario-cascata',
-  'porta-objetos',
-  'cinzeiro',
-  'porta-velas',
-  'pendentes-parede',
-]);
+const defaultPortfolio = [
+  { name: 'Peça 1', img: '' },
+  { name: 'Peça 2', img: '' },
+  { name: 'Peça 3', img: '' },
+];
 
 function verifyToken(req) {
   const auth = req.headers.authorization;
@@ -32,12 +26,10 @@ function verifyToken(req) {
   }
 }
 
-function sanitizeItem(p) {
-  const cat = String(p.category || '');
+function sanitizePiece(p) {
   return {
     name: String(p.name || '').slice(0, 100),
     img: String(p.img || '').slice(0, 500),
-    category: VALID_CATS.has(cat) ? cat : '',
   };
 }
 
@@ -48,35 +40,33 @@ module.exports = async (req, res) => {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // GET - listar peças da galeria (público)
   if (req.method === 'GET') {
     try {
-      const data = await redis.get(GALLERY_KEY);
-      const gallery = data || defaultGallery;
-      return res.status(200).json({ gallery });
+      const data = await redis.get(PORTFOLIO_KEY);
+      const portfolio = data || defaultPortfolio;
+      return res.status(200).json({ portfolio });
     } catch (e) {
-      return res.status(200).json({ gallery: defaultGallery });
+      return res.status(200).json({ portfolio: defaultPortfolio });
     }
   }
 
-  // PUT - atualizar galeria (protegido)
   if (req.method === 'PUT') {
     if (!verifyToken(req)) {
       return res.status(401).json({ error: 'Não autorizado' });
     }
 
     try {
-      const { gallery } = req.body;
+      const { portfolio } = req.body;
 
-      if (!Array.isArray(gallery) || gallery.length > 80) {
+      if (!Array.isArray(portfolio) || portfolio.length > 30) {
         return res.status(400).json({ error: 'Dados inválidos' });
       }
 
-      const sanitized = gallery.map(sanitizeItem);
-      await redis.set(GALLERY_KEY, sanitized);
-      return res.status(200).json({ gallery: sanitized });
+      const sanitized = portfolio.map(sanitizePiece);
+      await redis.set(PORTFOLIO_KEY, sanitized);
+      return res.status(200).json({ portfolio: sanitized });
     } catch (e) {
-      return res.status(500).json({ error: 'Erro ao salvar galeria' });
+      return res.status(500).json({ error: 'Erro ao salvar portfólio' });
     }
   }
 
