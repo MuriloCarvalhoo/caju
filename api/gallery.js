@@ -7,16 +7,9 @@ const redis = new Redis({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const PRODUCTS_KEY = 'caju:products';
+const GALLERY_KEY = 'caju:gallery';
 
-const defaultProducts = [
-  { name: 'Produto 1', price: 'R$ 00,00', img: '', category: '' },
-  { name: 'Produto 2', price: 'R$ 00,00', img: '', category: '' },
-  { name: 'Produto 3', price: 'R$ 00,00', img: '', category: '' },
-  { name: 'Produto 4', price: 'R$ 00,00', img: '', category: '' },
-  { name: 'Produto 5', price: 'R$ 00,00', img: '', category: '' },
-  { name: 'Produto 6', price: 'R$ 00,00', img: '', category: '' },
-];
+const defaultGallery = [];
 
 const VALID_CATS = new Set([
   '',
@@ -39,11 +32,10 @@ function verifyToken(req) {
   }
 }
 
-function sanitizeProduct(p) {
+function sanitizeItem(p) {
   const cat = String(p.category || '');
   return {
     name: String(p.name || '').slice(0, 100),
-    price: String(p.price || '').slice(0, 20),
     img: String(p.img || '').slice(0, 500),
     category: VALID_CATS.has(cat) ? cat : '',
   };
@@ -56,35 +48,35 @@ module.exports = async (req, res) => {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // GET - listar produtos (público)
+  // GET - listar peças da galeria (público)
   if (req.method === 'GET') {
     try {
-      const data = await redis.get(PRODUCTS_KEY);
-      const products = data || defaultProducts;
-      return res.status(200).json({ products });
+      const data = await redis.get(GALLERY_KEY);
+      const gallery = data || defaultGallery;
+      return res.status(200).json({ gallery });
     } catch (e) {
-      return res.status(200).json({ products: defaultProducts });
+      return res.status(200).json({ gallery: defaultGallery });
     }
   }
 
-  // PUT - atualizar produtos (protegido)
+  // PUT - atualizar galeria (protegido)
   if (req.method === 'PUT') {
     if (!verifyToken(req)) {
       return res.status(401).json({ error: 'Não autorizado' });
     }
 
     try {
-      const { products } = req.body;
+      const { gallery } = req.body;
 
-      if (!Array.isArray(products) || products.length > 60) {
+      if (!Array.isArray(gallery) || gallery.length > 80) {
         return res.status(400).json({ error: 'Dados inválidos' });
       }
 
-      const sanitized = products.map(sanitizeProduct);
-      await redis.set(PRODUCTS_KEY, sanitized);
-      return res.status(200).json({ products: sanitized });
+      const sanitized = gallery.map(sanitizeItem);
+      await redis.set(GALLERY_KEY, sanitized);
+      return res.status(200).json({ gallery: sanitized });
     } catch (e) {
-      return res.status(500).json({ error: 'Erro ao salvar produtos' });
+      return res.status(500).json({ error: 'Erro ao salvar galeria' });
     }
   }
 
