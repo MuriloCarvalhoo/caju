@@ -497,6 +497,72 @@
     line-height: 1.7; font-weight: 300;
   }
 
+  /* PORTFÓLIO (peças não à venda) */
+  .portfolio-pecas {
+    padding: 8rem 3rem;
+    background: var(--c5);
+    position: relative;
+  }
+  .portfolio-pecas .section-header { margin-bottom: 4rem; }
+  .portfolio-pecas .section-title { color: var(--c0); }
+  .portfolio-pecas .section-sub {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    color: var(--c2);
+    margin-top: 0.75rem;
+    font-weight: 300;
+  }
+  .pecas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 2rem;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  .peca-card {
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 6px 24px rgba(44,26,14,0.06);
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+  }
+  .peca-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 14px 36px rgba(44,26,14,0.12);
+  }
+  .peca-img {
+    aspect-ratio: 4 / 3;
+    background: var(--c4);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .peca-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .peca-img-placeholder {
+    color: var(--c2);
+    font-size: 0.9rem;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .peca-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    font-weight: 500;
+    color: var(--c0);
+    padding: 1.1rem 1.25rem 1.4rem;
+    margin: 0;
+    text-align: center;
+  }
+  @media (max-width: 600px) {
+    .portfolio-pecas { padding: 5rem 1.25rem; }
+    .pecas-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  }
+
   /* PORTFOLIO */
   .portfolio {
     padding: 8rem 3rem;
@@ -1097,6 +1163,7 @@
   <ul class="nav-links">
     <li><a href="#sobre">Sobre</a></li>
     <li><a href="#portfolio">Catálogo</a></li>
+    <li><a href="#portfolio-pecas">Portfólio</a></li>
     <li><a href="#contato">Contato</a></li>
   </ul>
   <button class="nav-hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
@@ -1107,6 +1174,7 @@
 <div class="nav-mobile" id="nav-mobile">
   <a href="#sobre" onclick="toggleMenu()">Sobre</a>
   <a href="#portfolio" onclick="toggleMenu()">Catálogo</a>
+  <a href="#portfolio-pecas" onclick="toggleMenu()">Portfólio</a>
   <a href="#contato" onclick="toggleMenu()">Contato</a>
 </div>
 
@@ -1195,6 +1263,18 @@
   </div>
 </section>
 
+<!-- PORTFÓLIO (peças não à venda) -->
+<section class="portfolio-pecas" id="portfolio-pecas">
+  <div class="section-header">
+    <div>
+      <span class="section-label reveal">Galeria</span>
+      <h2 class="section-title reveal reveal-delay-1">Nossas <em>peças</em></h2>
+      <p class="section-sub reveal reveal-delay-2">Trabalhos exclusivos que não estão à venda</p>
+    </div>
+  </div>
+  <div class="pecas-grid reveal" id="pecas-grid"></div>
+</section>
+
 <!-- MODAL -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
   <div class="modal-box" onclick="event.stopPropagation()">
@@ -1261,11 +1341,19 @@
       </div>
       <p class="admin-sub">Clique em cada produto para editar nome, preço e foto. As alterações ficam visíveis para todos os visitantes.</p>
       <div class="admin-grid" id="admin-grid"></div>
+
+      <h3 class="admin-title" style="font-size:1.2rem;margin-top:2.5rem;">Portfólio (peças não à venda)</h3>
+      <p class="admin-sub">Adicione peças exclusivas para exibir na galeria. Sem preço, apenas imagem e nome.</p>
+      <div class="admin-grid" id="admin-pecas-grid"></div>
+      <div class="admin-btns" style="margin-top:0.75rem;">
+        <button class="admin-btn-ghost" onclick="addPeca()">+ Adicionar peça</button>
+      </div>
+
       <div class="admin-status" id="admin-status"></div>
       <div class="admin-btns" style="margin-top:1.5rem;">
         <button class="admin-btn-primary" id="save-btn" onclick="saveProducts()">Salvar alterações</button>
       </div>
-      <p class="admin-hint">💡 Clique na imagem de cada produto para trocar a foto.</p>
+      <p class="admin-hint">💡 Clique na imagem de cada item para trocar a foto.</p>
     </div>
   </div>
 </div>
@@ -1289,6 +1377,7 @@
   ];
 
   let products = JSON.parse(JSON.stringify(defaultProducts));
+  let pecas = [];
 
   // ── Carregar produtos do backend ────────────────────────────
   async function fetchProducts() {
@@ -1300,6 +1389,49 @@
       products = defaultProducts;
     }
     renderCarousel(products);
+  }
+
+  // ── Carregar portfólio do backend ───────────────────────────
+  async function fetchPecas() {
+    try {
+      const res = await fetch(API_BASE + '/portfolio');
+      const data = await res.json();
+      pecas = Array.isArray(data.portfolio) ? data.portfolio : [];
+    } catch(e) {
+      pecas = [];
+    }
+    renderPecas();
+  }
+
+  async function pushPecas(items) {
+    const res = await fetch(API_BASE + '/portfolio', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + adminToken
+      },
+      body: JSON.stringify({ portfolio: items })
+    });
+    if (!res.ok) throw new Error('Erro ao salvar portfólio');
+  }
+
+  function renderPecas() {
+    const grid = document.getElementById('pecas-grid');
+    if (!grid) return;
+    if (!pecas.length) {
+      grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--c2);font-family:\'DM Sans\',sans-serif;">Em breve novas peças por aqui.</p>';
+      return;
+    }
+    grid.innerHTML = pecas.map(p => {
+      const safeName = (p.name || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      const imgHTML = p.img
+        ? '<img src="' + p.img + '" alt="' + safeName + '">'
+        : '<div class="peca-img-placeholder">＋ foto em breve</div>';
+      return '<div class="peca-card">'
+        + '<div class="peca-img">' + imgHTML + '</div>'
+        + '<h3 class="peca-name">' + safeName + '</h3>'
+        + '</div>';
+    }).join('');
   }
 
   // ── Salvar produtos no backend ──────────────────────────────
@@ -1366,6 +1498,7 @@
   let logoClicks = 0, logoTimer;
   document.addEventListener('DOMContentLoaded', () => {
     fetchProducts();
+    fetchPecas();
     const logo = document.querySelector('.footer-logo');
     if (logo) logo.addEventListener('click', () => {
       logoClicks++;
@@ -1429,6 +1562,65 @@
         + '<input class="ap-price admin-input" value="' + p.price + '" placeholder="R$ 00,00">'
         + '</div>';
     }).join('');
+    buildAdminPecasGrid();
+  }
+
+  function buildAdminPecasGrid() {
+    const grid = document.getElementById('admin-pecas-grid');
+    if (!grid) return;
+    grid.innerHTML = pecas.map((p, i) => {
+      const preview = p.img
+        ? '<img src="' + p.img + '" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">'
+        : '<span style="font-size:0.72rem;color:var(--c2);text-align:center;padding:0.5rem;">Clique para adicionar foto</span>';
+      const safeName = (p.name || '').replace(/"/g,'&quot;');
+      return '<div class="admin-product-row" data-peca-index="' + i + '">'
+        + '<div class="ap-img-wrap" onclick="document.getElementById(\'pcf' + i + '\').click()">' + preview + '</div>'
+        + '<div class="ap-upload-status" id="pc-status-' + i + '"></div>'
+        + '<input type="file" id="pcf' + i + '" accept="image/*" style="display:none;" onchange="handlePecaImg(this,' + i + ')">'
+        + '<input class="pc-name admin-input" value="' + safeName + '" placeholder="Nome da peça">'
+        + '<button class="admin-btn-ghost" style="padding:0.5rem;font-size:0.75rem;" onclick="removePeca(' + i + ')">Remover</button>'
+        + '</div>';
+    }).join('') || '<p style="grid-column:1/-1;font-size:0.85rem;color:var(--c2);">Nenhuma peça ainda. Clique em "Adicionar peça".</p>';
+  }
+
+  function addPeca() {
+    // captura inputs já editados antes de re-render
+    document.querySelectorAll('[data-peca-index]').forEach(row => {
+      const idx = parseInt(row.dataset.pecaIndex, 10);
+      const nameInput = row.querySelector('.pc-name');
+      if (pecas[idx] && nameInput) pecas[idx].name = nameInput.value;
+    });
+    pecas.push({ name: 'Nova peça', img: '' });
+    buildAdminPecasGrid();
+  }
+
+  function removePeca(index) {
+    document.querySelectorAll('[data-peca-index]').forEach(row => {
+      const idx = parseInt(row.dataset.pecaIndex, 10);
+      const nameInput = row.querySelector('.pc-name');
+      if (pecas[idx] && nameInput) pecas[idx].name = nameInput.value;
+    });
+    pecas.splice(index, 1);
+    buildAdminPecasGrid();
+  }
+
+  async function handlePecaImg(input, index) {
+    const file = input.files[0];
+    if (!file) return;
+    const status = document.getElementById('pc-status-' + index);
+    status.textContent = '⏳ Enviando foto...';
+    status.style.color = 'var(--c2)';
+    try {
+      const url = await uploadImage(file);
+      pecas[index].img = url;
+      const wrap = input.previousElementSibling.previousElementSibling;
+      wrap.innerHTML = '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">';
+      status.textContent = '✓ Foto enviada!';
+      status.style.color = '#27ae60';
+    } catch(e) {
+      status.textContent = '✗ Erro ao enviar.';
+      status.style.color = '#c0392b';
+    }
   }
 
   // ── Upload de foto no painel ────────────────────────────────
@@ -1453,10 +1645,19 @@
 
   // ── Salvar todos os dados ───────────────────────────────────
   async function saveProducts() {
-    const rows = document.querySelectorAll('.admin-product-row');
-    rows.forEach((row, i) => {
-      products[i].name  = row.querySelector('.ap-name').value  || products[i].name;
-      products[i].price = row.querySelector('.ap-price').value || products[i].price;
+    document.querySelectorAll('[data-index]').forEach(row => {
+      const i = parseInt(row.dataset.index, 10);
+      if (!products[i]) return;
+      const nameEl = row.querySelector('.ap-name');
+      const priceEl = row.querySelector('.ap-price');
+      if (nameEl) products[i].name = nameEl.value || products[i].name;
+      if (priceEl) products[i].price = priceEl.value || products[i].price;
+    });
+    document.querySelectorAll('[data-peca-index]').forEach(row => {
+      const i = parseInt(row.dataset.pecaIndex, 10);
+      if (!pecas[i]) return;
+      const nameEl = row.querySelector('.pc-name');
+      if (nameEl) pecas[i].name = nameEl.value || pecas[i].name;
     });
 
     const btn    = document.getElementById('save-btn');
@@ -1467,11 +1668,13 @@
 
     try {
       await pushProducts(products);
+      await pushPecas(pecas);
       renderCarousel(products);
+      renderPecas();
       status.textContent = '✓ Alterações salvas e publicadas para todos os visitantes!';
       status.style.color = '#27ae60';
     } catch(e) {
-      status.textContent = '✗ Erro ao salvar. Verifique as chaves do JSONBin.';
+      status.textContent = '✗ Erro ao salvar. Tente novamente.';
       status.style.color = '#c0392b';
     } finally {
       btn.textContent = 'Salvar alterações';
